@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Administrador | Papelería 1x1 y Mas</title>
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="admin.css">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Cloudinary Upload Widget -->
+    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+    <script src="cloudinary-config.js?v=2"></script>
+</head>
+
+<body>
+    <div class="admin-wrapper" id="adminWrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <img src="logo.png" alt="Papelería 1x1 y Mas">
+                <h2>Administador</h2>
+            </div>
+
+            <nav class="sidebar-nav">
+                <button class="tab-btn active" data-tab="products">
+                    <i class="fas fa-box"></i>
+                    <span>Productos</span>
+                </button>
+                <button class="tab-btn" data-tab="orders">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Pedidos</span>
+                </button>
+                <button class="tab-btn" data-tab="users">
+                    <i class="fas fa-users"></i>
+                    <span>Usuarios</span>
+                </button>
+                <button class="tab-btn" data-tab="carousel">
+                    <i class="fas fa-images"></i>
+                    <span>Carrusel</span>
+                </button>
+                <button class="tab-btn" data-tab="promotions">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Promociones</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">AD</div>
+                    <div class="user-meta">
+                        <p style="font-size: 13px; font-weight: 600;">Administrador</p>
+                        <p style="font-size: 11px; color: var(--secondary);">Online</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Search & Info Bar -->
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="mobile-menu-toggle d-lg-none" id="mobileMenuBtn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1>
+                        <span style="color: #1034a6;">Papelería</span>
+                        <span style="color: #e91e63;">1x1 y Mas</span>
+                        
+                    </h1>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <!-- Global Quick Stats (Visible across some tabs or strictly for dashboard) -->
+                <div class="quick-stats">
+                    <div class="quick-stat-card">
+                        <div class="stat-icon blue">
+                            <i class="fas fa-shopping-bag"></i>
+                        </div>
+                        <div class="stat-details">
+                            <span class="stat-label">Pedidos Totales</span>
+                            <span class="stat-value" id="totalOrders">0</span>
+                        </div>
+                    </div>
+                    <div class="quick-stat-card">
+                        <div class="stat-icon green">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stat-details">
+                            <span class="stat-label">Ingresos</span>
+                            <span class="stat-value" id="totalRevenue">$0.00</span>
+                        </div>
+                    </div>
+                    <div class="quick-stat-card">
+                        <div class="stat-icon purple">
+                            <i class="fas fa-user-friends"></i>
+                        </div>
+                        <div class="stat-details">
+                            <span class="stat-label">Clientes</span>
+                            <span class="stat-value" id="totalUsers">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Tab -->
+                <div id="products-tab" class="tab-content active">
+                    <div class="section-header">
+                        <div class="header-info">
+                            <h2>Gestión de Inventario</h2>
+                            <p>Administra y actualiza tus productos en tiempo real.</p>
+                        </div>
+                        <button class="btn btn-primary" id="addProductBtn">
+                            <i class="fas fa-plus"></i>
+                            Agregar Producto
+                        </button>
+                    </div>
+
+                    <!-- Product Form (Modal-like card) -->
+                    <div class="product-form-container" id="productFormContainer" style="display: none;">
+                        <form id="productForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Nombre del Producto</label>
+                                    <input type="text" id="productName" placeholder="Ej. Lápiz adhesivo 22g" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Categoría</label>
+                                    <input type="text" id="productCategory" placeholder="Ej. Adhesivos" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Descripción del Producto</label>
+                                <textarea id="productDescription" rows="3"
+                                    placeholder="Describe brevemente el producto..." required></textarea>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Precio Unitario</label>
+                                    <input type="number" id="productPrice" step="0.01" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Precio Mayoreo</label>
+                                    <input type="number" id="productWholesalePrice" step="0.01" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Límite Mayoreo (mínimo pzas)</label>
+                                    <input type="number" id="productWholesaleQuantity" value="4" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Stock Disponible</label>
+                                    <input type="number" id="productStock" min="0" required>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Marca</label>
+                                    <input type="text" id="productBrand" placeholder="Ej. Bic, Berol...">
+                                </div>
+                                <div class="form-group">
+                                    <label>SKU / Código</label>
+                                    <input type="text" id="productSku" placeholder="Ej. PAP-001">
+                                </div>
+                            </div>
+
+                            <!-- Image Preview Section -->
+                            <div class="form-group">
+                                <label>Imágenes del Producto</label>
+                                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                    <input type="url" id="imageUrl" placeholder="Pegar URL de imagen aquí..."
+                                        style="flex: 1;">
+                                    <button type="button" class="btn btn-secondary" id="addUrlImage">Añadir</button>
+                                </div>
+                                <div style="border: 2px dashed var(--slate-200); padding: 20px; text-align: center; border-radius: 12px; cursor: pointer;"
+                                    id="fileUploadArea">
+                                    <i class="fas fa-image"
+                                        style="font-size: 24px; color: var(--secondary); margin-bottom: 8px;"></i>
+                                    <p style="font-size: 13px; color: var(--secondary);">Subir archivos locales</p>
+                                    <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                                </div>
+                                <div class="image-preview-container" id="imagePreviewContainer"
+                                    style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;"></div>
+                            </div>
+
+                            <div class="form-actions"
+                                style="border-top: 1px solid var(--slate-200); padding-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+                                <button type="button" class="btn btn-secondary" id="cancelProductBtn">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" id="saveProductBtn">Publicar
+                                    Producto</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="productsList">
+                        <!-- Products will be loaded via admin.js -->
+                    </div>
+                </div>
+
+                <!-- Orders Tab -->
+                <div id="orders-tab" class="tab-content">
+                    <div class="section-header">
+                        <div class="header-info">
+                            <h2>Gestión de Pedidos</h2>
+                            <p>Control de ventas, entregas y estados de pago.</p>
+                        </div>
+                        <div class="filters">
+                            <select id="orderStatusFilter" class="btn btn-secondary">
+                                <option value="">Todos los estados</option>
+                                <option value="pending">Pendientes</option>
+                                <option value="completed">Completados</option>
+                                <option value="cancelled">Cancelados</option>
+                            </select>
+                            <select id="orderPaymentFilter" class="btn btn-secondary">
+                                <option value="">Todos los métodos</option>
+                                <option value="card">Tarjeta Online</option>
+                                <option value="whatsapp">Efectivo / WhatsApp</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="ordersList" class="orders-list"></div>
+                </div>
+
+                <!-- Users Tab -->
+                <div id="users-tab" class="tab-content">
+                    <div class="section-header">
+                        <div class="header-info">
+                            <h2>Directorio de Clientes</h2>
+                            <p>Historial y detalles de usuarios registrados.</p>
+                        </div>
+                    </div>
+                    <div id="usersList"></div>
+                </div>
+
+                <!-- Carousel Tab -->
+                <div id="carousel-tab" class="tab-content">
+                    <div class="section-header">
+                        <div class="header-info">
+                            <h2>Gestor de Carrusel</h2>
+                            <p>Administra las imágenes del carrusel de la página principal.</p>
+                        </div>
+                        <button class="btn btn-warning" onclick="restoreDefaultCarousel()"
+                            style="background: #f59e0b; border-color: #f59e0b;">
+                            <i class="fas fa-undo"></i>
+                            Restaurar Originales
+                        </button>
+                    </div>
+
+                    <!-- Add Carousel Image Form -->
+                    <div class="product-form-container" style="display: block; margin-bottom: 30px;">
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label>Nombre de la imagen</label>
+                                <input type="text" id="carouselNameInput" placeholder="Ej: Cuaderno Escolar">
+                            </div>
+                            <div class="form-group" style="flex: 2;">
+                                <label>URL de Imagen</label>
+                                <input type="text" id="carouselUrlInput" placeholder="https://...">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <button class="btn btn-primary" onclick="handleAddCarouselImage()">
+                                <i class="fas fa-plus"></i>
+                                Agregar desde URL
+                            </button>
+                            <button class="btn btn-secondary" onclick="handleAddCarouselFile()">
+                                <i class="fas fa-upload"></i>
+                                Subir Archivo
+                            </button>
+                        </div>
+                        <p style="font-size: 13px; color: var(--secondary); margin-top: 10px;">
+                            <i class="fas fa-info-circle"></i>
+                            Puedes agregar imágenes pegando una URL o subiendo un archivo desde tu computadora.
+                        </p>
+                    </div>
+
+                    <!-- Carousel Images Grid -->
+                    <div id="carouselList"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px;">
+                        <!-- Carousel items will be loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Promotions Tab -->
+                <div id="promotions-tab" class="tab-content">
+                    <div class="section-header">
+                        <div class="header-info">
+                            <h2>Gestor de Promociones</h2>
+                            <p>Imágenes destacadas para la sección de novedades.</p>
+                        </div>
+                    </div>
+
+                    <div class="product-form-container">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Título (Opcional)</label>
+                                <input type="text" id="promoTitleInput" placeholder="Ej: Oferta de Regreso a Clases">
+                            </div>
+                            <div class="form-group" style="flex: 2;">
+                                <label>URL de Imagen</label>
+                                <input type="text" id="promoImageInput" placeholder="https://...">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="handleAddPromotion()">
+                                <i class="fas fa-plus"></i> Agregar Promo
+                            </button>
+                            <button class="btn btn-secondary" onclick="handleUploadPromotion()">
+                                <i class="fas fa-upload"></i> Subir Imagen
+                            </button>
+                        </div>
+                        <p style="margin-top: 10px; font-size: 13px; color: var(--secondary);">
+                            <i class="fas fa-info-circle"></i>
+                            Sube una imagen vertical o cuadrada para mejores resultados.
+                        </p>
+                    </div>
+
+                    <div id="promotionsList"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px;">
+                        <!-- Promotions loaded here -->
+                    </div>
+                </div>
+
+                <!-- Stats Section Removed -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Ticket Modal -->
+    <div id="ticketModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeTicketModal()"
+                style="position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.05); border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="ticketContent"></div>
+            <div style="margin-top: 30px; display: flex; gap: 15px;">
+                <button class="btn btn-primary" onclick="printTicket()" style="flex: 1; padding: 15px;">
+                    <i class="fas fa-print"></i> Imprimir Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="admin.js?v=2"></script>
+</body>
+
+</html>
