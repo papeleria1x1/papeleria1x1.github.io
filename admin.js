@@ -95,12 +95,20 @@ function setupNavigation() {
         });
     }
 
-    // File input change for products (Cloudinary)
+    // File upload area for products (Cloudinary)
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    if (fileUploadArea) {
+        fileUploadArea.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleAddProductFile();
+        });
+    }
+
+    // Prevent default on file input if somehow triggered
     const fileInput = document.getElementById('fileInput');
     if (fileInput) {
         fileInput.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent default file dialog
-            handleAddProductFile();
+            e.preventDefault();
         });
     }
 }
