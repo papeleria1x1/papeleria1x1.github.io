@@ -261,16 +261,53 @@ async function loadOrders() {
                 else if (order.status === 'pending') statusClass = 'warning';
                 else if (order.status === 'cancelled') statusClass = 'danger';
 
+                // Get customer phone from userInfo
+                const customerPhone = order.userInfo?.phone || order.shippingAddress?.phone || '';
+                const customerName = order.userInfo?.fullName || order.shippingAddress?.fullName || 'Cliente';
+                const orderId = order.id.slice(-6);
+
+                // Create detailed WhatsApp message with order info
+                let orderDetails = `Hola ${customerName}, te contacto de Papelería 1x1 y Más respecto a tu pedido #${orderId}.\n\n`;
+                orderDetails += `📦 *Detalles del Pedido:*\n`;
+                orderDetails += `━━━━━━━━━━━━━━━━\n`;
+
+                // Add products
+                if (order.items && order.items.length > 0) {
+                    order.items.forEach((item, index) => {
+                        orderDetails += `${index + 1}. ${item.name}\n`;
+                        orderDetails += `   Cantidad: ${item.quantity}\n`;
+                        orderDetails += `   Precio: $${(item.totalPrice || 0).toFixed(2)}\n`;
+                    });
+                }
+
+                orderDetails += `━━━━━━━━━━━━━━━━\n`;
+                orderDetails += `💰 *Total: $${(order.total || 0).toFixed(2)}*\n`;
+                orderDetails += `📍 Método: ${order.deliveryMethod === 'delivery' ? 'Envío a Domicilio' : 'Recoger en Tienda'}\n`;
+                orderDetails += `📅 Fecha: ${date}\n`;
+                orderDetails += `📊 Estado: ${order.status || 'pending'}\n\n`;
+                orderDetails += `¿En qué puedo ayudarte?`;
+
+                const whatsappLink = customerPhone ?
+                    `https://wa.me/52${customerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(orderDetails)}` :
+                    '';
+
                 ordersHtml += `
                     <tr>
-                        <td data-label="ID"><small class="text-muted fw-bold">#${order.id.slice(-6)}</small></td>
+                        <td data-label="ID"><small class="text-muted fw-bold">#${orderId}</small></td>
                         <td data-label="Total" class="fw-bold">$${(order.total || 0).toFixed(2)}</td>
                         <td data-label="Estado"><span class="badge rounded-pill bg-${statusClass}">${order.status || 'pending'}</span></td>
                         <td data-label="Fecha">${date}</td>
                         <td data-label="Acciones">
-                            <button class="btn btn-sm btn-primary" onclick="viewOrder('${order.id}')">
-                                <i class="fas fa-eye"></i> Ver
-                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-primary" onclick="viewOrder('${order.id}')">
+                                    <i class="fas fa-eye"></i> Ver
+                                </button>
+                                ${customerPhone ? `
+                                    <a href="${whatsappLink}" target="_blank" class="btn btn-sm btn-success" title="Contactar por WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                ` : ''}
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -402,12 +439,49 @@ window.viewOrder = (id) => {
 
         const currentStatus = data.status || 'pending';
 
+        // Get customer contact info
+        const customerPhone = data.userInfo?.phone || data.shippingAddress?.phone || '';
+        const customerName = data.userInfo?.fullName || 'Cliente';
+        const orderId = id.slice(-6);
+        const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString() : 'N/A';
+
+        // Create detailed WhatsApp message with order info
+        let orderDetails = `Hola ${customerName}, te contacto de Papelería 1x1 y Más respecto a tu pedido #${orderId}.\n\n`;
+        orderDetails += `📦 *Detalles del Pedido:*\n`;
+        orderDetails += `━━━━━━━━━━━━━━━━\n`;
+
+        // Add products
+        if (data.items && data.items.length > 0) {
+            data.items.forEach((item, index) => {
+                orderDetails += `${index + 1}. ${item.name}\n`;
+                orderDetails += `   Cantidad: ${item.quantity}\n`;
+                orderDetails += `   Precio: $${(item.totalPrice || 0).toFixed(2)}\n`;
+            });
+        }
+
+        orderDetails += `━━━━━━━━━━━━━━━━\n`;
+        orderDetails += `💰 *Total: $${(data.total || 0).toFixed(2)}*\n`;
+        orderDetails += `📍 Método: ${data.deliveryMethod === 'delivery' ? 'Envío a Domicilio' : 'Recoger en Tienda'}\n`;
+        orderDetails += `📅 Fecha: ${date}\n`;
+        orderDetails += `📊 Estado: ${data.status || 'pending'}\n\n`;
+        orderDetails += `¿En qué puedo ayudarte?`;
+
+        const whatsappLink = customerPhone ?
+            `https://wa.me/52${customerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(orderDetails)}` :
+            '';
+
         content.innerHTML = `
-            <h3>Detalles del Pedido <small class="text-muted fs-6">#${id.slice(-6)}</small></h3>
+            <h3>Detalles del Pedido <small class="text-muted fs-6">#${orderId}</small></h3>
             <div class="mb-4">
                 <p class="mb-1"><strong>Cliente:</strong> ${data.userInfo?.fullName || 'N/A'}</p>
                 <p class="mb-1"><strong>Email:</strong> ${data.userInfo?.email || 'N/A'}</p>
+                <p class="mb-1"><strong>Teléfono:</strong> ${customerPhone || 'No registrado'}</p>
                 <p class="mb-1"><strong>Método:</strong> ${data.deliveryMethod === 'delivery' ? 'Envío a Domicilio' : 'Recoger en Tienda'}</p>
+                ${customerPhone ? `
+                    <a href="${whatsappLink}" target="_blank" class="btn btn-success btn-sm mt-2">
+                        <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                    </a>
+                ` : ''}
             </div>
 
             <div class="mb-4 p-3 bg-white rounded border">
