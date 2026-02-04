@@ -197,8 +197,14 @@ async function loadOrders() {
     container.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary"></div></div>';
 
     try {
-        const snapshot = await rtdb.ref('orders').orderByChild('timestamp').limitToLast(100).once('value');
-        const ordersData = snapshot.val();
+        // Cargar pedidos y usuarios en paralelo
+        const [ordersSnapshot, usersSnapshot] = await Promise.all([
+            rtdb.ref('orders').orderByChild('timestamp').limitToLast(100).once('value'),
+            rtdb.ref('users').once('value')
+        ]);
+
+        const ordersData = ordersSnapshot.val();
+        const usersData = usersSnapshot.val() || {};
 
         if (!ordersData) {
             container.innerHTML = '<div class="alert alert-info">No hay pedidos registrados.</div>';
@@ -261,8 +267,14 @@ async function loadOrders() {
                 else if (order.status === 'pending') statusClass = 'warning';
                 else if (order.status === 'cancelled') statusClass = 'danger';
 
-                // Get customer phone from userInfo
-                const customerPhone = order.userInfo?.phone || order.shippingAddress?.phone || '';
+                // Get customer phone from userInfo or search in usersData
+                let customerPhone = order.userInfo?.phone || order.shippingAddress?.phone || '';
+
+                // Si no hay teléfono en el pedido, buscar en usersData
+                if (!customerPhone && order.userId && order.userId !== 'guest' && usersData[order.userId]) {
+                    customerPhone = usersData[order.userId].phone || '';
+                }
+
                 const customerName = order.userInfo?.fullName || order.shippingAddress?.fullName || 'Cliente';
                 const orderId = order.id.slice(-6);
 
@@ -420,14 +432,15 @@ async function loadUsers() {
 }
 
 // Order View & Status Management
-window.viewOrder = (id) => {
+window.viewOrder = async (id) => {
     // Show spinner in modal while loading
     const modal = document.getElementById('ticketModal');
     const content = document.getElementById('ticketContent');
     if (modal) modal.style.display = 'flex';
     content.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary"></div></div>';
 
-    rtdb.ref(`orders/${id}`).once('value').then(snap => {
+    try {
+        const snap = await rtdb.ref(`orders/${id}`).once('value');
         const data = snap.val();
         if (!data) {
             content.innerHTML = '<div class="alert alert-danger">Pedido no encontrado</div>';
@@ -443,8 +456,23 @@ window.viewOrder = (id) => {
 
         const currentStatus = data.status || 'pending';
 
-        // Get customer contact info
-        const customerPhone = data.userInfo?.phone || data.shippingAddress?.phone || '';
+        // Get customer contact info from order
+        let customerPhone = data.userInfo?.phone || data.shippingAddress?.phone || '';
+
+        // Si no hay teléfono en el pedido, buscar en la base de datos de usuarios
+        if (!customerPhone && data.userId && data.userId !== 'guest') {
+            try {
+                const userSnap = await rtdb.ref(`users/${data.userId}`).once('value');
+                const userData = userSnap.val();
+                if (userData && userData.phone) {
+                    customerPhone = userData.phone;
+                    console.log(`📞 Teléfono encontrado en DB de usuarios: ${customerPhone}`);
+                }
+            } catch (err) {
+                console.warn('No se pudo buscar el teléfono del usuario:', err);
+            }
+        }
+
         const customerName = data.userInfo?.fullName || 'Cliente';
         const orderId = id.slice(-6);
         const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString() : 'N/A';
@@ -529,7 +557,10 @@ window.viewOrder = (id) => {
                 </small>
             </div>
         `;
-    });
+    } catch (error) {
+        console.error('Error loading order:', error);
+        content.innerHTML = '<div class="alert alert-danger">Error al cargar el pedido</div>';
+    }
 };
 
 window.updateOrderStatus = (orderId, newStatus) => {
