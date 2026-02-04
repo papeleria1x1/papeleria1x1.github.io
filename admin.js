@@ -306,7 +306,11 @@ async function loadOrders() {
                                     <a href="${whatsappLink}" target="_blank" class="btn btn-sm btn-success" title="Contactar por WhatsApp">
                                         <i class="fab fa-whatsapp"></i>
                                     </a>
-                                ` : ''}
+                                ` : `
+                                    <button class="btn btn-sm btn-warning" title="Sin teléfono registrado" disabled>
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </button>
+                                `}
                             </div>
                         </td>
                     </tr>
@@ -461,7 +465,13 @@ window.viewOrder = (id) => {
 
         orderDetails += `━━━━━━━━━━━━━━━━\n`;
         orderDetails += `💰 *Total: $${(data.total || 0).toFixed(2)}*\n`;
-        orderDetails += `📍 Método: ${data.deliveryMethod === 'delivery' ? 'Envío a Domicilio' : 'Recoger en Tienda'}\n`;
+        // Determine delivery label
+        let deliveryLabel = data.deliveryMethod === 'delivery' ? 'Envío a Domicilio' : 'Recoger en Tienda';
+        if (data.deliveryMethod === 'delivery' && data.shippingOption?.name) {
+            deliveryLabel += ` (${data.shippingOption.name})`;
+        }
+
+        orderDetails += `📍 Método: ${deliveryLabel}\n`;
         orderDetails += `📅 Fecha: ${date}\n`;
         orderDetails += `📊 Estado: ${data.status || 'pending'}\n\n`;
         orderDetails += `¿En qué puedo ayudarte?`;
@@ -475,13 +485,24 @@ window.viewOrder = (id) => {
             <div class="mb-4">
                 <p class="mb-1"><strong>Cliente:</strong> ${data.userInfo?.fullName || 'N/A'}</p>
                 <p class="mb-1"><strong>Email:</strong> ${data.userInfo?.email || 'N/A'}</p>
-                <p class="mb-1"><strong>Teléfono:</strong> ${customerPhone || 'No registrado'}</p>
-                <p class="mb-1"><strong>Método:</strong> ${data.deliveryMethod === 'delivery' ? 'Envío a Domicilio' : 'Recoger en Tienda'}</p>
+                <p class="mb-1">
+                    <strong>Teléfono:</strong> 
+                    ${customerPhone
+                ? customerPhone
+                : '<span class="text-danger fw-bold">⚠️ No registrado</span>'}
+                </p>
+                <p class="mb-1"><strong>Método:</strong> ${deliveryLabel}</p>
                 ${customerPhone ? `
                     <a href="${whatsappLink}" target="_blank" class="btn btn-success btn-sm mt-2">
                         <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
                     </a>
-                ` : ''}
+                ` : `
+                    <div class="alert alert-warning mt-2 py-2 px-3" style="font-size: 13px;">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Sin teléfono:</strong> Este cliente se registró sin teléfono. 
+                        Contacta por email: <a href="mailto:${data.userInfo?.email || ''}">${data.userInfo?.email || 'N/A'}</a>
+                    </div>
+                `}
             </div>
 
             <div class="mb-4 p-3 bg-white rounded border">
