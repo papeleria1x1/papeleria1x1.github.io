@@ -77,4 +77,3 @@ function openCloudinaryWidget(callback) {
 
 // Exportar para uso global
 window.openCloudinaryWidget = openCloudinaryWidget;
-
