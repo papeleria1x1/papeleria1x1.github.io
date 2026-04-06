@@ -36,7 +36,8 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <img src="logo.png" alt="Papelería 1x1 y Mas">
+                <img src="https://res.cloudinary.com/dx6vocljj/image/upload/f_auto,q_auto/v1770361934/logo_jbqsyu.webp"
+                    alt="Papelería 1x1 y Mas">
                 <h2>Administador</h2>
             </div>
 
@@ -60,6 +61,10 @@
                 <button class="tab-btn" data-tab="promotions">
                     <i class="fas fa-bullhorn"></i>
                     <span>Promociones</span>
+                </button>
+                <button class="tab-btn" data-tab="featured">
+                    <i class="fas fa-star"></i>
+                    <span>Secciones</span>
                 </button>
             </nav>
 
@@ -85,7 +90,7 @@
                     <h1>
                         <span style="color: #1034a6;">Papelería</span>
                         <span style="color: #e91e63;">1x1 y Mas</span>
-                        
+
                     </h1>
                 </div>
             </header>
@@ -97,7 +102,7 @@
                         <div class="stat-icon blue">
                             <i class="fas fa-shopping-bag"></i>
                         </div>
-                        <div class="stat-details">  
+                        <div class="stat-details">
                             <span class="stat-label">Pedidos Totales</span>
                             <span class="stat-value" id="totalOrders">0</span>
                         </div>
@@ -343,6 +348,88 @@
                 </div>
 
                 <!-- Stats Section Removed -->
+
+                <!-- Featured Sections Tab -->
+                <div id="featured-tab" class="tab-content">
+                    <div class="section-header">
+                        <div class="header-info">
+                            <h2>Secciones Destacadas</h2>
+                            <p>Escoge qué productos aparecen en cada sección de la tienda con scroll horizontal.</p>
+                        </div>
+                    </div>
+
+                    <!-- Section: Destacados del Mes -->
+                    <div class="product-form-container" style="margin-bottom: 24px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <div>
+                                <h3 style="margin:0; font-size:18px; font-weight:700;"><i class="fas fa-star text-warning me-2"></i> Destacados del Mes</h3>
+                                <p style="margin:4px 0 0; font-size:13px; color:var(--secondary);">Aparece primero en la tienda. Máximo recomendado: 10 productos.</p>
+                            </div>
+                            <label class="toggle-switch" title="Activar / Desactivar sección">
+                                <input type="checkbox" id="toggle-destacados_mes" onchange="toggleSection('destacados_mes', this.checked)" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <!-- Search -->
+                        <div style="display:flex; gap:10px; margin-bottom:12px;">
+                            <input type="text" id="search-destacados_mes" placeholder="Buscar producto por nombre..." style="flex:1;" oninput="filterProductSearch('destacados_mes')">
+                        </div>
+                        <!-- Product picker -->
+                        <div id="picker-destacados_mes" class="featured-picker"></div>
+                        <!-- Current list -->
+                        <p style="font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; margin:14px 0 8px;">En la sección ahora:</p>
+                        <div id="list-destacados_mes" class="featured-current-list"></div>
+                        <button class="btn btn-primary" onclick="saveSection('destacados_mes')" style="margin-top:12px;">
+                            <i class="fas fa-save"></i> Guardar cambios
+                        </button>
+                    </div>
+
+                    <!-- Section: Te podria gustar -->
+                    <div class="product-form-container" style="margin-bottom: 24px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <div>
+                                <h3 style="margin:0; font-size:18px; font-weight:700;"><i class="fas fa-magic text-primary me-2"></i> Te podría gustar</h3>
+                                <p style="margin:4px 0 0; font-size:13px; color:var(--secondary);">Aparece después de Destacados. Ideas personalizadas.</p>
+                            </div>
+                            <label class="toggle-switch" title="Activar / Desactivar sección">
+                                <input type="checkbox" id="toggle-te_podria_gustar" onchange="toggleSection('te_podria_gustar', this.checked)" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div style="display:flex; gap:10px; margin-bottom:12px;">
+                            <input type="text" id="search-te_podria_gustar" placeholder="Buscar producto por nombre..." style="flex:1;" oninput="filterProductSearch('te_podria_gustar')">
+                        </div>
+                        <div id="picker-te_podria_gustar" class="featured-picker"></div>
+                        <p style="font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; margin:14px 0 8px;">En la sección ahora:</p>
+                        <div id="list-te_podria_gustar" class="featured-current-list"></div>
+                        <button class="btn btn-primary" onclick="saveSection('te_podria_gustar')" style="margin-top:12px;">
+                            <i class="fas fa-save"></i> Guardar cambios
+                        </button>
+                    </div>
+
+                    <!-- Section: Mas Vendidos -->
+                    <div class="product-form-container">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <div>
+                                <h3 style="margin:0; font-size:18px; font-weight:700;"><i class="fas fa-fire text-danger me-2"></i> Más Vendidos</h3>
+                                <p style="margin:4px 0 0; font-size:13px; color:var(--secondary);">Los más populares. Aparece al final de las secciones.</p>
+                            </div>
+                            <label class="toggle-switch" title="Activar / Desactivar sección">
+                                <input type="checkbox" id="toggle-mas_vendidos" onchange="toggleSection('mas_vendidos', this.checked)" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div style="display:flex; gap:10px; margin-bottom:12px;">
+                            <input type="text" id="search-mas_vendidos" placeholder="Buscar producto por nombre..." style="flex:1;" oninput="filterProductSearch('mas_vendidos')">
+                        </div>
+                        <div id="picker-mas_vendidos" class="featured-picker"></div>
+                        <p style="font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; margin:14px 0 8px;">En la sección ahora:</p>
+                        <div id="list-mas_vendidos" class="featured-current-list"></div>
+                        <button class="btn btn-primary" onclick="saveSection('mas_vendidos')" style="margin-top:12px;">
+                            <i class="fas fa-save"></i> Guardar cambios
+                        </button>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
