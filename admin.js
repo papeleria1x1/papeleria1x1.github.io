@@ -41,12 +41,49 @@ function initializeFirebase() {
 }
 
 // Main App Initialization
+// Initial Setup & Image Optimizer
 function initializeApp() {
     setupNavigation();
     loadProducts();
     loadStats();
     setupOrderFilters();
     checkUrlParams();
+}
+
+/**
+ * Image Optimizer Logic (Duplicated from frontend/src/utils/imageOptimizer.js)
+ * Allows optimization of external images via Cloudinary fetch.
+ */
+function getOptimizedImageUrl(img, options = {}) {
+    if (!img) return 'https://placehold.co/150x150?text=No+Image';
+
+    const { width, height, quality = 'auto' } = options;
+    let params = `f_auto,q_${quality}`;
+    if (width) params += `,w_${width}`;
+    if (height) params += `,h_${height}`;
+
+    // 1. Si es Localhost, NO optimizar (carga directa para velocidad en dev)
+    if (window.location.hostname === 'localhost') {
+        // En admin local a veces queremos ver optimizado igual para probar, pero dejemoslo igual
+        return img;
+    }
+
+    // 2. Si ya es de Cloudinary
+    if (img.includes('cloudinary.com')) {
+        if (img.includes('/upload/')) {
+            const parts = img.split('/upload/');
+            // Add params if not present (simple implementation for admin)
+            return `${parts[0]}/upload/${params}/${parts[1].replace('f_auto,q_auto/', '')}`;
+        }
+        return img;
+    }
+
+    // 3. Si es externa (http), usar Fetch
+    if (img.startsWith('http')) {
+        return `https://res.cloudinary.com/dx6vocljj/image/fetch/${params}/${encodeURIComponent(img)}`;
+    }
+
+    return img;
 }
 
 // Navigation
@@ -130,6 +167,7 @@ function switchTab(tabName) {
     if (tabName === 'users') loadUsers();
     if (tabName === 'carousel') loadCarouselImages();
     if (tabName === 'promotions') loadPromotions();
+    if (tabName === 'featured') loadFeaturedSections();
 }
 
 function checkUrlParams() {
@@ -459,18 +497,36 @@ window.viewOrder = async (id) => {
         // Get customer contact info from order
         let customerPhone = data.userInfo?.phone || data.shippingAddress?.phone || '';
 
+        // DEBUG: Ver qué datos tenemos
+        console.log('🔍 DEBUG - Datos del pedido:', {
+            userId: data.userId,
+            userInfoPhone: data.userInfo?.phone,
+            shippingPhone: data.shippingAddress?.phone,
+            customerPhone: customerPhone
+        });
+
         // Si no hay teléfono en el pedido, buscar en la base de datos de usuarios
         if (!customerPhone && data.userId && data.userId !== 'guest') {
+            console.log(`🔎 Buscando teléfono en DB para userId: ${data.userId}`);
             try {
                 const userSnap = await rtdb.ref(`users/${data.userId}`).once('value');
                 const userData = userSnap.val();
+                console.log('👤 Datos del usuario encontrados:', userData);
                 if (userData && userData.phone) {
                     customerPhone = userData.phone;
                     console.log(`📞 Teléfono encontrado en DB de usuarios: ${customerPhone}`);
+                } else {
+                    console.warn('⚠️ Usuario encontrado pero sin teléfono');
                 }
             } catch (err) {
-                console.warn('No se pudo buscar el teléfono del usuario:', err);
+                console.error('❌ Error al buscar teléfono del usuario:', err);
             }
+        } else {
+            console.log('ℹ️ No se buscó en DB porque:', {
+                tienePhone: !!customerPhone,
+                tieneUserId: !!data.userId,
+                esGuest: data.userId === 'guest'
+            });
         }
 
         const customerName = data.userInfo?.fullName || 'Cliente';
@@ -671,7 +727,7 @@ function createProductCard(product) {
 
     card.innerHTML = `
         <div style="height: 120px; width: 100%; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; overflow: hidden; border-radius: 8px;">
-<img src="${image}" alt="${product.name}" style="max-height: 100%; max-width: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='https://placehold.co/150x150?text=No+Image';">
+<img src="${getOptimizedImageUrl(image, { width: 200 })}" alt="${product.name}" style="max-height: 100%; max-width: 100%; object-fit: contain;" onerror="this.onerror=null; this.src='https://placehold.co/150x150?text=No+Image';">
         </div>
         <div class="product-card-info">
             <h4 style="font-size: 16px; margin-bottom: 5px; font-weight: 600;">${product.name}</h4>
@@ -910,7 +966,7 @@ async function loadCarouselImages() {
             div.className = 'product-card';
             div.innerHTML = `
                 <div style="height: 150px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
-                    <img src="${data.image}" style="max-height: 100%; max-width: 100%; object-fit: contain;">
+                    <img src="${getOptimizedImageUrl(data.image, { width: 300 })}" style="max-height: 100%; max-width: 100%; object-fit: contain;">
                 </div>
                 <p style="text-align: center; font-weight: bold;">${data.name || 'Sin nombre'}</p>
                 <button class="btn btn-danger btn-sm w-100" onclick="deleteCarouselImage('${doc.id}')">Eliminar</button>
@@ -958,7 +1014,7 @@ window.loadPromotions = async function () {
             html += `
                 <div class="product-card">
                     <div style="aspect-ratio: 4/5; background: #f0f0f0; border-radius: 8px; overflow: hidden; margin-bottom: 10px; position:relative;">
-                        <img src="${promo.image}" style="width:100%; height:100%; object-fit:cover;">
+                        <img src="${getOptimizedImageUrl(promo.image, { width: 300 })}" style="width:100%; height:100%; object-fit:cover;">
                     </div>
                     <div class="p-2">
                         <h4 style="font-size: 14px; margin-bottom: 5px; font-weight: bold;">${promo.title || 'Sin Título'}</h4>
@@ -1033,6 +1089,181 @@ window.deletePromotion = async function (id) {
 window.removeProductImage = removeProductImage;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
+
+// ============================================
+// FEATURED SECTIONS MANAGEMENT
+// ============================================
+
+let allProductsCache = [];
+let featuredData = {
+    destacados_mes: { active: true, productIds: [] },
+    te_podria_gustar: { active: true, productIds: [] },
+    mas_vendidos: { active: true, productIds: [] }
+};
+
+async function loadFeaturedSections() {
+    try {
+        // 1. Fetch all products if cache is empty
+        if (allProductsCache.length === 0) {
+            const snap = await db.collection('products').get();
+            allProductsCache = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+
+        // 2. Fetch sections data
+        for (const sectionId of Object.keys(featuredData)) {
+            const docSnap = await db.collection('featured_sections').doc(sectionId).get();
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                featuredData[sectionId].active = data.active !== false;
+                featuredData[sectionId].productIds = data.productIds || [];
+            }
+            
+            // Set initial toggle state
+            const toggleEl = document.getElementById(`toggle-${sectionId}`);
+            if (toggleEl) toggleEl.checked = featuredData[sectionId].active;
+
+            // Render components
+            renderFeaturedPicker(sectionId);
+            renderFeaturedCurrentList(sectionId);
+        }
+    } catch (e) {
+        console.error('Error loading featured sections', e);
+    }
+}
+
+// Escuchar busqueda
+window.filterProductSearch = function(sectionId) {
+    const term = document.getElementById(`search-${sectionId}`).value.toLowerCase();
+    renderFeaturedPicker(sectionId, term);
+};
+
+// Activar o desactivar
+window.toggleSection = function(sectionId, isActive) {
+    featuredData[sectionId].active = isActive;
+};
+
+// Renderizar el selector de productos arriba (los que se pueden agregar)
+function renderFeaturedPicker(sectionId, searchTerm = '') {
+    const container = document.getElementById(`picker-${sectionId}`);
+    if (!container) return;
+    
+    // Filtrar los que no estén ya en la lista actual
+    const currentList = featuredData[sectionId].productIds;
+    let availableProducts = allProductsCache.filter(p => !currentList.includes(p.id));
+
+    if (searchTerm) {
+        availableProducts = availableProducts.filter(p => p.name.toLowerCase().includes(searchTerm));
+    }
+
+    container.innerHTML = '';
+    
+    if (availableProducts.length === 0) {
+        container.innerHTML = '<p style="color:var(--secondary); font-size:12px; margin-top:10px;">No hay productos disponibles para agregar.</p>';
+        return;
+    }
+
+    availableProducts.forEach(product => {
+        const image = (product.images && product.images.length > 0) ? product.images[0] : 'https://placehold.co/150x150?text=No+Image';
+        
+        const el = document.createElement('div');
+        el.className = 'featured-picker-item';
+        el.onclick = () => addFeaturedProduct(sectionId, product.id);
+        el.title = "Haz clic para agregar a la sección";
+        
+        el.innerHTML = `
+            <img src="${getOptimizedImageUrl(image, { width: 150 })}" alt="${product.name}" onerror="this.src='https://placehold.co/150x150?text=No+Image'">
+            <p>${product.name}</p>
+        `;
+        container.appendChild(el);
+    });
+}
+
+// Renderizar la lista de productos ya asignados a la seccion
+function renderFeaturedCurrentList(sectionId) {
+    const container = document.getElementById(`list-${sectionId}`);
+    if (!container) return;
+
+    container.innerHTML = '';
+    const currentIds = featuredData[sectionId].productIds;
+
+    if (currentIds.length === 0) {
+        container.innerHTML = '<div style="padding:10px;text-align:center;color:var(--secondary);font-size:13px;">Ningún producto seleccionado en esta sección.</div>';
+        return;
+    }
+
+    currentIds.forEach((prodId, index) => {
+        const product = allProductsCache.find(p => p.id === prodId);
+        if (!product) return; // Si fue borrado de la db
+
+        const image = (product.images && product.images.length > 0) ? product.images[0] : 'https://placehold.co/150x150?text=No+Image';
+
+        const el = document.createElement('div');
+        el.className = 'featured-current-item';
+        el.innerHTML = `
+            <span style="font-size:12px; font-weight:700; color:var(--slate-400); width:20px;">${index + 1}.</span>
+            <img src="${getOptimizedImageUrl(image, { width: 100 })}" onerror="this.src='https://placehold.co/150x150?text=No+Image'">
+            <div class="ft-title">${product.name}</div>
+            <div class="ft-controls">
+                <button type="button" class="ft-btn" onclick="moveFeaturedProduct('${sectionId}', ${index}, -1)" ${index === 0 ? 'disabled style="opacity:0.3"' : ''} title="Subir">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+                <button type="button" class="ft-btn" onclick="moveFeaturedProduct('${sectionId}', ${index}, 1)" ${index === currentIds.length - 1 ? 'disabled style="opacity:0.3"' : ''} title="Bajar">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <button type="button" class="ft-btn ft-btn-danger" style="margin-left:8px;" onclick="removeFeaturedProduct('${sectionId}', '${prodId}')" title="Quitar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(el);
+    });
+}
+
+window.addFeaturedProduct = function(sectionId, prodId) {
+    featuredData[sectionId].productIds.push(prodId);
+    renderFeaturedPicker(sectionId, document.getElementById(`search-${sectionId}`).value.toLowerCase());
+    renderFeaturedCurrentList(sectionId);
+};
+
+window.removeFeaturedProduct = function(sectionId, prodId) {
+    featuredData[sectionId].productIds = featuredData[sectionId].productIds.filter(id => id !== prodId);
+    renderFeaturedPicker(sectionId, document.getElementById(`search-${sectionId}`).value.toLowerCase());
+    renderFeaturedCurrentList(sectionId);
+};
+
+window.moveFeaturedProduct = function(sectionId, index, direction) {
+    const arr = featuredData[sectionId].productIds;
+    const newPos = index + direction;
+    if (newPos < 0 || newPos >= arr.length) return;
+    
+    // Swap
+    const temp = arr[index];
+    arr[index] = arr[newPos];
+    arr[newPos] = temp;
+    
+    renderFeaturedCurrentList(sectionId);
+};
+
+window.saveSection = async function(sectionId) {
+    const initialText = event.currentTarget.innerHTML;
+    event.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    event.currentTarget.disabled = true;
+
+    try {
+        await db.collection('featured_sections').doc(sectionId).set({
+            active: featuredData[sectionId].active,
+            productIds: featuredData[sectionId].productIds,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('Sección guardada correctamente.');
+    } catch (e) {
+        console.error(e);
+        alert('Error al guardar sección.');
+    } finally {
+        event.currentTarget.innerHTML = initialText;
+        event.currentTarget.disabled = false;
+    }
+};
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', initializeFirebase);
